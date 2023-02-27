@@ -1,0 +1,10 @@
+{
+  "name": "slanderbar",
+  "scripts": {
+    "dev": "vite dev"
+  },
+  "devDependencies": {
+    "vite": "^4.1.4",
+    "vite-plugin-wasm": "^3.2.1"
+  }
+}
