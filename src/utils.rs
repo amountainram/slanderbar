@@ -1,7 +1,7 @@
 use std::fmt::Error;
 
 use nom::{
-    bytes::{complete::take_until, streaming::tag},
+    bytes::complete::{tag, take_until},
     combinator::map_res,
     sequence::delimited,
     IResult,
@@ -9,8 +9,8 @@ use nom::{
 
 #[derive(Debug)]
 pub struct TaggedTemplate<'a> {
-    literals: Vec<&'a str>,
-    variables: Vec<&'a str>,
+    pub literals: Vec<&'a str>,
+    pub variables: Vec<&'a str>,
 }
 
 impl<'a> TaggedTemplate<'a> {
@@ -18,6 +18,50 @@ impl<'a> TaggedTemplate<'a> {
         Self {
             literals: vec![],
             variables: vec![],
+        }
+    }
+}
+
+fn remove_braces(input: &str) -> &str {
+    let (_, found) = map_res(
+        delimited(tag("["), take_until("]"), tag("]")),
+        |wrapped_key: &str| {
+            let trimmed_key = wrapped_key.trim();
+
+            if trimmed_key.len() == 0 {
+                return Ok::<&str, Error>("");
+            }
+
+            let real_key = match (&trimmed_key[0..1], &trimmed_key[trimmed_key.len() - 1..]) {
+                (r#"""#, r#"""#) | ("'", "'") => &trimmed_key[1..trimmed_key.len() - 1],
+                _ => trimmed_key,
+            };
+
+            Ok::<&str, Error>(real_key)
+        },
+    )(input)
+    .unwrap_or_else(|_: nom::Err<nom::error::Error<_>>| ("", input.trim()));
+
+    found
+}
+
+pub fn key_parser(text: &str) -> Vec<&str> {
+    let mut next_part = text;
+    if next_part.len() == 0 {
+        return vec![];
+    }
+
+    let mut keys = vec![];
+    loop {
+        match take_until::<&str, &str, nom::error::Error<_>>(".")(next_part) {
+            Ok((rest, found)) => {
+                keys.push(remove_braces(found));
+                next_part = &rest[1..];
+            }
+            Err(_) => {
+                keys.push(remove_braces(next_part));
+                return keys;
+            }
         }
     }
 }
@@ -109,5 +153,17 @@ mod tests {
 
         assert_eq!(template.variables.len(), 1);
         assert_eq!(*template.variables.get(0).unwrap(), "world");
+    }
+
+    #[test]
+    fn should_remove_braces_to_key() {
+        let keys = key_parser("first.['a key'].  another_key.[   '0' ].[         its me ].wei[rdo");
+
+        vec!["first", "a key", "another_key", "0", "its me", "wei[rdo"]
+            .iter()
+            .zip(&keys)
+            .for_each(|(&a, &b)| {
+                assert_eq!(a, b);
+            });
     }
 }

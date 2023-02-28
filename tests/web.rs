@@ -2,12 +2,23 @@
 
 #![cfg(target_arch = "wasm32")]
 
-extern crate wasm_bindgen_test;
+use core::panic;
+use std::vec;
+
+use slanderbar::*;
+use wasm_bindgen::JsValue;
 use wasm_bindgen_test::*;
 
 wasm_bindgen_test_configure!(run_in_browser);
 
 #[wasm_bindgen_test]
 fn pass() {
-    assert_eq!(1 + 1, 2);
+    let obj = js_sys::Object::new();
+    js_sys::Reflect::set(&obj, &"world".into(), &"World".into());
+
+    let result = compile(String::from(r#"Hello, {{ world }}!"#), obj)
+        .map_err(JsValue::from)
+        .unwrap();
+
+    assert_eq!(result, String::from("Hello, World!"));
 }
