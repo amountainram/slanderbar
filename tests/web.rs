@@ -16,7 +16,7 @@ fn pass() {
     let obj = js_sys::Object::new();
     js_sys::Reflect::set(&obj, &"world".into(), &"World".into());
 
-    let result = compile(String::from(r#"Hello, {{ world }}!"#), obj)
+    let result = compile(String::from(r#"Hello, {{ world }}!"#).as_str(), &obj)
         .map_err(JsValue::from)
         .unwrap();
 
