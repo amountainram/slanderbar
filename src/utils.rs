@@ -91,6 +91,11 @@ pub fn parser(text: &str) -> IResult<&str, TaggedTemplate> {
             Ok((rest, var)) => {
                 tagged_template.literals.push(found);
                 tagged_template.variables.push(var);
+
+                if rest.len() == 0 {
+                    tagged_template.literals.push("");
+                }
+
                 rest
             }
             Err(_) => {
@@ -126,8 +131,9 @@ mod tests {
     #[test]
     fn should_parse_a_basic_string() {
         let (_, template) = parser(r#"hello {{ world }}"#).unwrap();
-        assert_eq!(template.literals.len(), 1);
+        assert_eq!(template.literals.len(), 2);
         assert_eq!(*template.literals.get(0).unwrap(), "hello ");
+        assert_eq!(*template.literals.get(1).unwrap(), "");
 
         assert_eq!(template.variables.len(), 1);
         assert_eq!(*template.variables.get(0).unwrap(), "world");
@@ -153,6 +159,19 @@ mod tests {
 
         assert_eq!(template.variables.len(), 1);
         assert_eq!(*template.variables.get(0).unwrap(), "world");
+    }
+
+    #[test]
+    fn should_return_more_literals_than_variables_with_an_excess_of_one() {
+        let (_, template) = parser(r#"hello {{ world }} and also to {{ you }}"#).unwrap();
+        assert_eq!(template.literals.len(), 3);
+        assert_eq!(*template.literals.get(0).unwrap(), "hello ");
+        assert_eq!(*template.literals.get(1).unwrap(), " and also to ");
+        assert_eq!(*template.literals.get(2).unwrap(), "");
+
+        assert_eq!(template.variables.len(), 2);
+        assert_eq!(*template.variables.get(0).unwrap(), "world");
+        assert_eq!(*template.variables.get(1).unwrap(), "you");
     }
 
     #[test]

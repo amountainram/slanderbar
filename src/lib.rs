@@ -1,5 +1,3 @@
-use std::ops::Deref;
-
 use js_sys::{JsString, Object};
 use utils::{key_parser, parser, set_panic_hook};
 use wasm_bindgen::prelude::*;
@@ -31,12 +29,10 @@ pub fn compile(x: &str, ctx: &Object) -> Result<String, JsError> {
         .map(|&var| key_parser(var))
         .map(|real_keys| {
             real_keys.iter().map(|&x| Some(x.into())).fold(
-                None,
+                Some(ctx.into()),
                 |acc: Option<JsValue>, x: Option<JsValue>| {
-                    log(format!("{:?}", acc).as_str());
                     if let Some(value) = x {
-                        log(format!("{:?}", value).as_str());
-                        return js_sys::Reflect::get(ctx, &value).ok();
+                        return js_sys::Reflect::get(&acc.unwrap(), &value).ok();
                     }
 
                     acc
@@ -45,6 +41,7 @@ pub fn compile(x: &str, ctx: &Object) -> Result<String, JsError> {
         })
         .collect();
 
+    let default_js_string = JsString::from("");
     let compiled_string = tagged_template
         .literals
         .iter()
@@ -52,9 +49,9 @@ pub fn compile(x: &str, ctx: &Object) -> Result<String, JsError> {
         .fold(String::default(), |acc, (&literal, variable)| {
             let var = variable
                 .as_ref()
-                .unwrap_or(&JsString::from(""))
+                .unwrap_or(&default_js_string)
                 .dyn_ref::<JsString>()
-                .unwrap()
+                .unwrap_or(&default_js_string)
                 .as_string()
                 .unwrap_or_default();
 
